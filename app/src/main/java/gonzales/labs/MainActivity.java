@@ -14,6 +14,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+// LAB 2 Addition
+import io.realm.Realm;
+
+
 public class MainActivity extends AppCompatActivity {
 
     EditText edtUsername, edtPassword;
@@ -21,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     Button btnSignIn, btnRegister, btnClear;
 
     SharedPreferences sharedPreferences;
+    Realm realm;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,33 +47,58 @@ public class MainActivity extends AppCompatActivity {
         btnClear = findViewById(R.id.btnClear);
 
         sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        realm = Realm.getDefaultInstance();
 
         boolean rememberMe = sharedPreferences.getBoolean("rememberMe", false);
 
         if (rememberMe) {
-            edtUsername.setText(sharedPreferences.getString("username", ""));
-            edtPassword.setText(sharedPreferences.getString("password", ""));
+//            edtUsername.setText(sharedPreferences.getString("username", ""));
+//            edtPassword.setText(sharedPreferences.getString("password", ""));
             chkRemember.setChecked(true);
+
+            String savedUuid = sharedPreferences.getString("uuid", "");
+
+            User savedUser = realm.where(User.class).equalTo("uuid", savedUuid).findFirst();
+
+            if (savedUser!=null) {
+                edtUsername.setText(savedUser.getName());
+            }
         }
 
         btnSignIn.setOnClickListener(view -> {
             String inputUsername = edtUsername.getText().toString();
             String inputPassword = edtPassword.getText().toString();
 
-            String savedUsername = sharedPreferences.getString("username", "");
-            String savedPassword = sharedPreferences.getString("password", "");
+//            String savedUsername = sharedPreferences.getString("username", "");
+//            String savedPassword = sharedPreferences.getString("password", "");
+//
+//            if (savedUsername.isEmpty() || savedPassword.isEmpty()) {
+//                Toast.makeText(this, "Nothing saved", Toast.LENGTH_SHORT).show();
+//            } else if (inputUsername.equals(savedUsername) && inputPassword.equals(savedPassword)) {
+//                SharedPreferences.Editor editor = sharedPreferences.edit();
+//                editor.putBoolean("rememberMe", chkRemember.isChecked());
+//                editor.apply();
+//
+//                Intent intent = new Intent(MainActivity.this, WelcomeActivity.class);
+//                startActivity(intent);
+//            } else {
+//                Toast.makeText(this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
+//            }
 
-            if (savedUsername.isEmpty() || savedPassword.isEmpty()) {
-                Toast.makeText(this, "Nothing saved", Toast.LENGTH_SHORT).show();
-            } else if (inputUsername.equals(savedUsername) && inputPassword.equals(savedPassword)) {
+            User user = realm.where(User.class).equalTo("name", inputUsername).findFirst();
+
+            if (user == null) {
+                Toast.makeText(this, "No User found", Toast.LENGTH_SHORT).show();
+            } else if (!inputPassword.equals(user.getPassword())) {
+                Toast.makeText(this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
+            } else {
                 SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putString("uuid", user.getUuid());
                 editor.putBoolean("rememberMe", chkRemember.isChecked());
                 editor.apply();
 
                 Intent intent = new Intent(MainActivity.this, WelcomeActivity.class);
                 startActivity(intent);
-            } else {
-                Toast.makeText(this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -89,4 +119,11 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Cleared", Toast.LENGTH_SHORT).show();
         });
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        realm.close();
+    }
+
 }
